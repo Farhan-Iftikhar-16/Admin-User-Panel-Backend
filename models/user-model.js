@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
+const config = require('../config/config');
+const jwt = require('jsonwebtoken');
 
 const userSchema = mongoose.Schema({
   userId: {
@@ -40,11 +42,11 @@ const userSchema = mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: false
   },
   contractDate: {
     type: String,
-    required: true
+    required: false
   },
   status: {
     type: String,
@@ -86,39 +88,20 @@ module.exports.createUser = (req , res) => {
         addressDetails: req.body.addressDetails,
         role: req.body.role,
         contractDate: req.body.contractDate,
-        password: 'User@123',
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date()
       });
 
-      bcryptjs.genSalt(10, (error, salt) => {
+      user.save((error, user)=> {
         if(error) {
-          res.status(500).json({success: false, message: 'Error occurred while encrypting the password.'});
+          res.status(500).json({success: false, message: 'Error occurred while creating account.'});
           return;
         }
 
         if(!error) {
-          bcryptjs.hash(user.password, salt, (error, hash) => {
-            if(error) {
-              res.status(500).json({success: false, message: 'Error occurred while encrypting the password.'});
-              return;
-            }
-
-            if(!error) {
-              user.password = hash;
-              user.save((error)=> {
-                if(error) {
-                  res.status(500).json({success: false, message: 'Error occurred while creating account.'});
-                  return;
-                }
-
-                if(!error) {
-                  res.status(200).json({success: true, message: 'Account created successfully.'});
-                }
-              });
-            }
-          })
+          res.status(200).json({success: true, message: 'Account created successfully.'});
+          sendNewAccountEmail(user);
         }
       });
     }
@@ -260,7 +243,8 @@ module.exports.getUserByEmail = (req, res) => {
           user: {
             _id: user._id,
             email: user.email,
-            role: user.role
+            role: user.role,
+            userId: user.userId
           }
         });
       }
@@ -279,4 +263,117 @@ module.exports.updateUserStatus = (req, res) => {
       res.status(200).json({success: true, message: 'User status updated successfully.'});
     }
   });
+}
+
+module.exports.sendResetPasswordEmail = (req, res) => {
+  User.findOne({email: req.body.email}, (error, response) =>  {
+    if (error) {
+      res.status(500).json({success: false, message: 'Error occurred while sending reset password email. Please try again.'});
+      return;
+    }
+
+    if (!response) {
+      res.status(500).json({success: false, message: 'User not found with the provided email.'});
+      return;
+    }
+
+    if (response) {
+      const token = jwt.sign(response.toJSON(), config.TOKEN_SECRET, { expiresIn: 3600000 }, null);
+
+      const transporter = config.transporter;
+
+      const mailOptions = {
+        from: config.emailFrom,
+        to: req.body.email,
+        subject: 'Reset Password link',
+        html: `<p>Click link below to reset password</p>
+               <a href="${config.FRONTEND_URL + 'auth/reset-password/' + token + '/' + response._id}">Reset Password</a>`
+      };
+
+      transporter.sendMail(mailOptions).then(() => {
+        res.status(200).json({success: true, message: 'Email sent successfully.'});
+      }).catch(() => {
+        res.status(500).json({success: true, message: 'Error occurred while sending email.'});
+      });
+    }
+  });
+
+}
+
+module.exports.verifyToken = (req, res) => {
+  const isValidToken = verifyJsonWebToken(req.body.token);
+  if (!isValidToken) {
+    res.status(500).json({success: false, message: 'Invalid token.'});
+    return;
+  }
+
+  res.status(200).json();
+}
+
+module.exports.resetPassword = (req, res) => {
+  User.findById(req.body.id, (error, response) => {
+    if (error) {
+      res.status(500).json({success: false, message: 'Error occurred while resetting password.'});
+      return;
+    }
+
+    if (!response) {
+      res.status(500).json({success: false, message: 'User not found.'});
+      return;
+    }
+
+    const isValidToken = verifyJsonWebToken(req.body.token);
+    if (!isValidToken) {
+      res.status(500).json({success: false, message: 'Invalid token.'});
+      return;
+    }
+
+    bcryptjs.genSalt(10, (error, salt) => {
+      if (error) {
+        res.status(500).json({success: false, message: 'Error occurred while resetting password.'});
+        return;
+      }
+
+      if (!error) {
+        bcryptjs.hash(req.body.password, salt, (error, hash) => {
+          if (error) {
+            res.status(500).json({success: false, message: 'Error occurred while resetting password.'});
+            return;
+          }
+
+          User.findByIdAndUpdate(req.body.id, { $set: {password: hash}}, {}, error => {
+            if (error) {
+              res.status(500).json({success: false, message: 'Error occurred while resetting password.'});
+              return;
+            }
+
+            if (!error) {
+              res.status(200).json({success: true, message: 'Password reset successfully.'});
+            }
+          });
+        });
+      }
+    });
+  });
+}
+
+function verifyJsonWebToken(token) {
+  return jwt.verify(token, config.TOKEN_SECRET, null,(error) => {
+    return !error;
+  });
+}
+
+function sendNewAccountEmail(user) {
+  const transporter = config.transporter;
+  const token = jwt.sign(user.toJSON(), config.TOKEN_SECRET, { expiresIn: 3600000 }, null);
+
+  const mailOptions = {
+    from: config.emailFrom,
+    to: user.email,
+    subject: 'Account Created Successfully',
+    html: `<p>Your account has been created successfully please click the link below to set password for login</p>
+           <a href="${config.FRONTEND_URL + 'auth/reset-password/' + token + '/' + user._id}" >Set password</a>`
+  };
+
+  transporter.sendMail(mailOptions).then();
 }

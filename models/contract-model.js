@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('./user-model');
+const multer = require("multer");
+const path = require("path");
 
 const contractSchema = mongoose.Schema({
   userId: {
@@ -28,45 +30,67 @@ const contractSchema = mongoose.Schema({
   }
 });
 
-const ContractModel = module.exports = mongoose.model('ContractModel', contractSchema);
+const Contract = module.exports = mongoose.model('Contract', contractSchema);
+
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './public/files/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+  }
+});
+
+let upload = multer({
+  storage: storage
+}).single('file');
+
 
 module.exports.createContract = (req , res) => {
-  const contract = new ContractModel({
-    userId: req.body.userId,
-    type: req.body.type,
-    file: req.file,
-    status: 'ACTIVE',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  });
-
-  contract.save((error)=> {
-    if(error) {
-      res.status(500).json({success: false, message: 'Error occurred while creating contract.'});
+  upload(req, res, error => {
+    if (error) {
+      res.status(500).json({status: 'Error', message: 'Error occurred while creating contract.'});
       return;
     }
 
-    if(!error) {
-      res.status(200).json({success: true, message: 'ContractModel created successfully.'});
-    }
+    const contract = new Contract({
+      userId: req.body.userId,
+      type: req.body.type,
+      file: req.file,
+      status: 'AWAITING_SIGNATURE',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    contract.save((error)=> {
+      if(error) {
+        res.status(500).json({success: false, message: 'Error occurred while creating contract.'});
+        return;
+      }
+
+      if(!error) {
+        res.status(200).json({success: true, message: 'Contract created successfully.'});
+      }
+    });
   });
 }
 
 module.exports.updateContract = (req , res) => {
-  ContractModel.findOneAndUpdate({_id: req.params.id}, req.body,{}, error => {
+  Contract.findOneAndUpdate({_id: req.params.id}, req.body,{}, error => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while updating details of contract.'});
       return;
     }
 
     if (!error) {
-      res.status(200).json({success: true, message: 'ContractModel details updated successfully.'});
+      res.status(200).json({success: true, message: 'Contract details updated successfully.'});
     }
   });
 }
 
 module.exports.getContractByID = (req , res) => {
-  ContractModel.findById(req.params.id, req.body,{}, (error, response) => {
+  Contract.findById(req.params.id, req.body,{}, (error, response) => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while updating details of contract.'});
       return;
@@ -93,7 +117,7 @@ module.exports.getContractByID = (req , res) => {
 }
 
 module.exports.getContracts = (req, res) => {
-  ContractModel.find({}, async (error, response) => {
+  Contract.find({}, async (error, response) => {
     if (error) {
       res.status(500).json({status: 'Error', message: 'Error occurred while getting contracts.'});
       return
@@ -132,8 +156,40 @@ module.exports.getContracts = (req, res) => {
   });
 }
 
+module.exports.getContractsByUserId = (req, res) => {
+  Contract.find({userId: req.params.userId}, ((error, response) => {
+    if (error) {
+      res.status(500).json({success: false, message: 'Error occurred while getting contracts.'});
+      return;
+    }
+
+    if (response && response.length > 0) {
+      const contracts = [];
+
+      if (response && response.length > 0) {
+        for (const contract of response) {
+          const data = {
+            _id: contract._id,
+            type: contract.type,
+            userId: contract.userId,
+            status: contract.status,
+            documentName: contract.file.originalname
+          };
+
+          contracts.push(data);
+        }
+      }
+
+      res.status(200).json({status: 'Success', contracts: contracts});
+      return;
+    }
+
+    res.status(200).json({status: 'Success', contracts: []});
+  }));
+}
+
 module.exports.updateContractStatus = (req, res) => {
-  ContractModel.findOneAndUpdate({_id: req.params.id}, {status: req.body.status},{}, (error) => {
+  Contract.findOneAndUpdate({_id: req.params.id}, {status: req.body.status},{}, (error) => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while updating status of contract.'});
       return;

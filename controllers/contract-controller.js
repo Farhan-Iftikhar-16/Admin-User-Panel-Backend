@@ -1,23 +1,9 @@
 const express = require('express');
 const Contract = require('../models/contract-model');
-const multer = require("multer");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, './files');
-  },
-  filename: (req, file, cb) => {
-    cb(null, file.fieldname + '-' + Date.now())
-  }
-});
-
-let upload = multer({
-  storage: storage
-});
-
-router.post('/create-contract', upload.single('file')  , (req, res) => {
+router.post('/create-contract'  , (req, res) => {
   Contract.createContract(req, res);
 });
 
@@ -35,6 +21,10 @@ router.get('/get-contracts', (req, res) => {
 
 router.put('/update-contract-status/:id', (req, res) => {
   Contract.updateContractStatus(req, res);
+});
+
+router.get('/get-contracts-by-user-id/:userId', (req, res) => {
+  Contract.getContractsByUserId(req, res);
 });
 
 module.exports = router;
