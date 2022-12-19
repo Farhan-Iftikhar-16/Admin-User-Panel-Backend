@@ -10,11 +10,12 @@ const bcryptjs = require("bcryptjs");
 const authController = require('./controllers/auth-controller');
 const userController = require('./controllers/user-controller');
 const contractController = require('./controllers/contract-controller');
+const stripeController = require('./controllers/stripe-controller');
 
 mongoose.connect(config.mongoURL).then(async () => {
   console.log(`Connected to DB: ${config.mongoURL}`);
 
-  const user =  await USERS.findOne({role: 'ADMIN'});
+  const user = await USERS.findOne({role: 'ADMIN'});
 
   if (!user) {
     const user = new USERS({
@@ -56,6 +57,7 @@ app.options('*', cors());
 app.use('/auth', authController);
 app.use('/users', userController);
 app.use('/contracts', contractController);
+app.use('/stripe', stripeController);
 
 server.listen(config.PORT, () => {
   console.log(`Server Running On Port: ${config.PORT}`)

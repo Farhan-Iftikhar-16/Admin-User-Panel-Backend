@@ -4,15 +4,15 @@ const config = require('../config/config');
 const jwt = require('jsonwebtoken');
 
 const userSchema = mongoose.Schema({
-  userId: {
-    type: String,
-    required: true
-  },
   firstName: {
     type: String,
     required: true
   },
   lastName: {
+    type: String,
+    required: true
+  },
+  userId: {
     type: String,
     required: true
   },
@@ -22,33 +22,25 @@ const userSchema = mongoose.Schema({
   },
   mobileNumber: {
     type: String,
-    required: false
+    required: true
   },
   gender: {
     type: String,
-    required: false
+    required: true
   },
   dateOfBirth: {
     type: String,
-    required: false
-  },
-  addressDetails: {
-    type: Object,
-    required: false
+    required: true
   },
   role: {
     type: String,
     required: true
   },
+  addressDetails: {
+    type: Object,
+    required: false,
+  },
   password: {
-    type: String,
-    required: false
-  },
-  contractDate: {
-    type: String,
-    required: false
-  },
-  status: {
     type: String,
     required: true
   },
@@ -65,7 +57,7 @@ const userSchema = mongoose.Schema({
 const User = module.exports = mongoose.model('User', userSchema);
 
 module.exports.createUser = (req , res) => {
-  User.findOne({email: req.body.email}, (error, user) => {
+  User.findOne({email: req.body.email}, async (error, user) => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while creating account.'});
       return;
@@ -78,38 +70,48 @@ module.exports.createUser = (req , res) => {
 
     if(!user) {
       const user = new User({
-        userId: req.body.userId,
         firstName: req.body.firstName,
         lastName: req.body.lastName,
-        email: req.body.email,
+        userId: req.body.userId,
+        email: req.body.firstName,
         gender: req.body.gender,
         dateOfBirth: req.body.dateOfBirth,
         mobileNumber: req.body.mobileNumber,
-        addressDetails: req.body.addressDetails,
         role: req.body.role,
-        contractDate: req.body.contractDate,
+        addressDetails: req.body.addressDetails,
         status: 'ACTIVE',
+        password: req.body.password,
         createdAt: new Date(),
         updatedAt: new Date()
       });
 
-      user.save((error, user)=> {
-        if(error) {
-          res.status(500).json({success: false, message: 'Error occurred while creating account.'});
-          return;
+      const salt = await bcryptjs.genSalt(10);
+
+      if (salt) {
+        const hash = await bcryptjs.hash(user.password, salt);
+
+        if (hash) {
+          user.password = hash;
         }
 
-        if(!error) {
-          res.status(200).json({success: true, message: 'Account created successfully.'});
-          sendNewAccountEmail(user);
-        }
-      });
+        user.save((error, user)=> {
+          if(error) {
+            res.status(500).json({success: false, message: 'Error occurred while creating account.'});
+            return;
+          }
+
+          if(!error) {
+            res.status(200).json({success: true, message: 'Account created successfully.'});
+            sendNewAccountEmail(user);
+          }
+        });
+      }
     }
   });
 }
 
 module.exports.updateUser = (req , res) => {
-  User.findOneAndUpdate({_id: req.params.id}, req.body,{}, error => {
+  User.findOneAndUpdate({_id: req.params.id}, {...req.body, updatedAt: new Date()},{}, error => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while updating details of user.'});
       return;
@@ -141,7 +143,6 @@ module.exports.getUserByID = (req , res) => {
         addressDetails: response.addressDetails,
         status: response.status,
         role: response.role,
-        contractDate: response.contractDate,
         createdAt: response.createdAt,
         updatedAt: response.updatedAt
       }
@@ -190,9 +191,6 @@ module.exports.getUsers = (req, res) => {
             gender: user.gender,
             status: user.status,
             role: user.role,
-            dateOfBirth: user.dateOfBirth,
-            mobileNumber: user.mobileNumber,
-            addressDetails: user.addressDetails,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             userId: user.userId

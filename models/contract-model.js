@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const User = require('./user-model');
 const multer = require("multer");
 const path = require("path");
+const doc = require("../jwtConsole");
 
 const contractSchema = mongoose.Schema({
   userId: {
@@ -63,13 +64,25 @@ module.exports.createContract = (req , res) => {
       updatedAt: new Date()
     });
 
-    contract.save((error)=> {
+    contract.save(async error=> {
       if(error) {
         res.status(500).json({success: false, message: 'Error occurred while creating contract.'});
         return;
       }
 
       if(!error) {
+        const user = await User.findOne({userId: contract.userId});
+
+        if (user) {
+          const docObj = {
+            email: user.email,
+            name: user.firstName + ' ' + user.lastName,
+            fileName: contract.file.filename
+          };
+
+          doc.sendDoc(docObj);
+        }
+
         res.status(200).json({success: true, message: 'Contract created successfully.'});
       }
     });
@@ -157,7 +170,7 @@ module.exports.getContracts = (req, res) => {
 }
 
 module.exports.getContractsByUserId = (req, res) => {
-  Contract.find({userId: req.params.userId}, ((error, response) => {
+  Contract.find( [{$and: [{ role: {$ne: 'ADMIN'} }, { userId: { $regex: req.query.text, $options: 'i'} }]}], ((error, response) => {
     if (error) {
       res.status(500).json({success: false, message: 'Error occurred while getting contracts.'});
       return;

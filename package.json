@@ -19,6 +19,13 @@
     "mongoose": "^6.2.10",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.8.0",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "stripe": "^11.1.0",
+    "docusign-esign": "^5.14.0",
+    "fs": "^0.0.1-security",
+    "fs-extra": "^10.0.0",
+    "path": "^0.12.7",
+    "prompt-sync": "^4.2.0",
+    "remove-node-modules": "^1.7.6"
   }
 }
