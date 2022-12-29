@@ -44,6 +44,10 @@ const userSchema = mongoose.Schema({
     type: String,
     required: true
   },
+  customer: {
+    type: String,
+    required: false
+  },
   createdAt: {
     type: Date,
     required: true
@@ -242,7 +246,9 @@ module.exports.getUserByEmail = (req, res) => {
             _id: user._id,
             email: user.email,
             role: user.role,
-            userId: user.userId
+            userId: user.userId,
+            customer: user.customer,
+            name: user.firstName + ' ' + user.lastName
           }
         });
       }

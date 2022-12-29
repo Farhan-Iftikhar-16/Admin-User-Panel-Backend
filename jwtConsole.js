@@ -96,12 +96,10 @@ function getArgs(apiAccountId, accessToken, basePath, docObj){
   }
 }
 
-
 async function main(docObj){
   let accountInfo = await authenticate();
   let args = getArgs(accountInfo.apiAccountId, accountInfo.accessToken, accountInfo.basePath, docObj);
-  let envelopeId = signingViaEmail.sendEnvelope(args);
-  console.log(envelopeId);
+  await signingViaEmail.sendEnvelope(args);
 }
 
 module.exports.sendDoc = (docObj) => {
