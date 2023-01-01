@@ -93,23 +93,65 @@ router.post('/pay-amount', async (req, res) => {
 
 });
 
-router.get('/transactions/:customerId', async (req, res) => {
+router.get('/transactions', async (req, res) => {
   const allTransactions = await stripe.balanceTransactions.list().catch((error) => {
     console.log(error);
     return res.status(500).json({success: false, message: error.raw.message});
   });
+
+  if (!req.query || !req.query.customer) {
+    for (let transaction of allTransactions.data) {
+      const source = await stripe.charges.retrieve(transaction.source);
+      transaction.customer = await stripe.customers.retrieve(source.customer);
+
+    }
+    res.status(200).json({success: true, transactions: allTransactions.data});
+    return;
+  }
+
 
   const filteredTransactions = []
 
   for (let transaction of allTransactions.data) {
     const source = await stripe.charges.retrieve(transaction.source);
 
-    if (source && source.customer === (req.params.customerId)) {
+    if (source && source.customer === (req.query.customer)) {
       filteredTransactions.push(transaction);
     }
   }
 
   res.status(200).json({success: true, transactions: filteredTransactions});
+});
+
+router.get('/subscriptions', async (req, res) => {
+  let subscriptions = await stripe.subscriptions.list().catch(error => {
+    console.log(error);
+    return res.status(500).json({success: false, message: error.raw.message});
+  });
+
+  subscriptions = subscriptions.data;
+
+  if (!req.query || !req.query.customer) {
+    for(let subscription of subscriptions) {
+      subscription.customer = await stripe.customers.retrieve(subscription.customer);
+      subscription.product = await stripe.products.retrieve(subscription.plan.product);
+    }
+    res.status(200).json({success: true, subscriptions: subscriptions});
+    return;
+  }
+
+  if (subscriptions && subscriptions.length > 0) {
+    const filteredSubscriptions = [];
+
+    for(let subscription of subscriptions) {
+      if (subscription.customer === req.query.customer) {
+        subscription.product = await stripe.products.retrieve(subscription.plan.product);
+        filteredSubscriptions.push(subscription);
+      }
+    }
+
+    res.status(200).json({success: true, subscriptions: filteredSubscriptions});
+  }
 });
 
 function createCustomer(value) {

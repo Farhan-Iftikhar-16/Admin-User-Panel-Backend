@@ -112,7 +112,7 @@ module.exports.createContract = (req , res) => {
          });
 
          const price = await stripe.prices.create({
-           unit_amount: response.price,
+           unit_amount: response.price * 100,
            currency: 'usd',
            product: product.id,
            recurring: {
