@@ -23,6 +23,10 @@ router.put('/update-contract-status/:id', (req, res) => {
   Contract.updateContractStatus(req, res);
 });
 
+router.put('/contract-signed', (req, res) => {
+  Contract.contractSigned(req, res);
+});
+
 router.get('/get-contracts-by-user-id/:userId', (req, res) => {
   Contract.getContractsByUserId(req, res);
 });

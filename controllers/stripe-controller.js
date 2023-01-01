@@ -1,6 +1,7 @@
 const config = require("../config/config");
 const express = require("express");
 const User = require("../models/user-model");
+const Contract = require("../models/contract-model");
 const stripe = require('stripe')(config.STRIPE_SECRET_KEY);
 const router = express.Router();
 
@@ -86,6 +87,8 @@ router.post('/pay-amount', async (req, res) => {
 
   await stripe.products.update(product.id, {metadata: {checkoutSession: checkoutSession.id}});
 
+  await Contract.findByIdAndUpdate(req.body.contract,  {status: 'PAYMENT_COMPLETE'});
+
   res.status(200).json({success: true, message: 'Payment done successfully'});
 
 });
@@ -100,7 +103,6 @@ router.get('/transactions/:customerId', async (req, res) => {
 
   for (let transaction of allTransactions.data) {
     const source = await stripe.charges.retrieve(transaction.source);
-    console.log(source);
 
     if (source && source.customer === (req.params.customerId)) {
       filteredTransactions.push(transaction);
