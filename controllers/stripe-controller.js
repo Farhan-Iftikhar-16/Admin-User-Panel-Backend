@@ -229,6 +229,33 @@ router.delete('/delete-subscription/:id', async (req, res) => {
   res.status(200).json({success: true, message: 'Subscription cancelled successfully.'});
 });
 
+
+
+router.post('/add-card', async (req, res) => {
+  const token = await stripe.tokens.create({
+    card: {
+      number: req.body.number,
+      exp_month: +req.body.expiryMonth,
+      exp_year: +req.body.expiryYear,
+      cvc: req.body.cvc,
+    },
+  }).catch(error => {
+    console.log(error);
+    return res.status(500).json({success: false, message: error.raw.message});
+  });
+
+  await stripe.customers.createSource(
+    req.body.customer,
+    {source: token.id}
+  ).catch(error => {
+    console.log(error);
+    return res.status(500).json({success: false, message: error.raw.message});
+  });
+
+
+  res.status(200).json({success: true, message: 'Card added successfully.'});
+});
+
 router.put('/update-default-source', async (req, res) => {
   await stripe.customers.update(req.body.id, {default_source: req.body.card}).catch(error => {
     console.log(error);

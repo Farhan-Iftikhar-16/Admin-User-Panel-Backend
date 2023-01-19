@@ -5,5 +5,5 @@
   "dsOauthServer": "https://account-d.docusign.com",
   "accountId": "732be646-7098-4188-b646-ab11c05044d8",
   "basePath": "https://demo.docusign.net/restapi",
-  "returnURL": "http://localhost:4300/user/contracts"
+  "returnURL": "http://localhost:4200/user/contracts"
 }

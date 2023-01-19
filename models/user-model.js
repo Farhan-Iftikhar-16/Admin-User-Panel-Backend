@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 const config = require('../config/config');
 const jwt = require('jsonwebtoken');
+const generator = require('generate-password');
 
 const userSchema = mongoose.Schema({
   firstName: {
@@ -84,7 +85,7 @@ module.exports.createUser = (req , res) => {
         role: req.body.role,
         addressDetails: req.body.addressDetails,
         status: 'ACTIVE',
-        password: req.body.password,
+        password: generator.generate({length: 10}),
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -375,7 +376,7 @@ function sendNewAccountEmail(user) {
     from: config.emailFrom,
     to: user.email,
     subject: 'Account Created Successfully',
-    html: `<p>Your account has been created successfully please click the link below to set password for login</p>
+    html: `<p>Your account has been created successfully please click the link below to set password for login.Temporary password is ${user.password}</p>
            <a href="${config.FRONTEND_URL + 'auth/reset-password/' + token + '/' + user._id}" >Set password</a>`
   };
 
