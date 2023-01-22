@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 const config = require('../config/config');
 const jwt = require('jsonwebtoken');
-const generator = require('generate-password');
 
 const userSchema = mongoose.Schema({
   firstName: {
@@ -85,7 +84,7 @@ module.exports.createUser = (req , res) => {
         role: req.body.role,
         addressDetails: req.body.addressDetails,
         status: 'ACTIVE',
-        password: generator.generate({length: 10}),
+        password: new Date().getTime() + Math.random(),
         createdAt: new Date(),
         updatedAt: new Date()
       });

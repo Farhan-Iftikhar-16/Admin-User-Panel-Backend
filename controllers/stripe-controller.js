@@ -184,7 +184,11 @@ router.get('/subscriptions', async (req, res) => {
     }
 
     res.status(200).json({success: true, subscriptions: filteredSubscriptions});
+
+    return;
   }
+
+  res.status(200).json({success: true, subscriptions: []});
 });
 
 router.get('/canceled-subscriptions', async (req, res) => {
@@ -229,8 +233,6 @@ router.delete('/delete-subscription/:id', async (req, res) => {
   res.status(200).json({success: true, message: 'Subscription cancelled successfully.'});
 });
 
-
-
 router.post('/add-card', async (req, res) => {
   const token = await stripe.tokens.create({
     card: {
@@ -244,6 +246,21 @@ router.post('/add-card', async (req, res) => {
     return res.status(500).json({success: false, message: error.raw.message});
   });
 
+  const cards =  await stripe.customers.listSources(
+    req.body.customer,
+    {object: 'card'}
+  );
+
+  if (cards && cards.data.length > 0) {
+    for (const card of cards.data) {
+      if (card.fingerprint === token.card.fingerprint) {
+        res.status(409).json({success: false, message: 'Card details already added.'});
+        return;
+      }
+    }
+  }
+
+
   await stripe.customers.createSource(
     req.body.customer,
     {source: token.id}
@@ -256,8 +273,20 @@ router.post('/add-card', async (req, res) => {
   res.status(200).json({success: true, message: 'Card added successfully.'});
 });
 
+router.delete('/delete-card/:customer/:card', async (req, res) => {
+  await stripe.customers.deleteSource(
+    req.params.customer,
+    req.params.card
+  ).catch(error => {
+    console.log(error);
+    return res.status(500).json({success: false, message: error.raw.message});
+  });
+
+  res.status(200).json({success: true, message: 'Card deleted successfully.'});
+});
+
 router.put('/update-default-source', async (req, res) => {
-  await stripe.customers.update(req.body.id, {default_source: req.body.card}).catch(error => {
+  await stripe.customers.update(req.body.customer, {default_source: req.body.card}).catch(error => {
     console.log(error);
     return res.status(500).json({success: false, message: error.raw.message});
   });
