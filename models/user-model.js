@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 const config = require('../config/config');
 const jwt = require('jsonwebtoken');
+const generator = require('generate-password');
 
 const userSchema = mongoose.Schema({
   firstName: {
@@ -14,7 +15,7 @@ const userSchema = mongoose.Schema({
   },
   userId: {
     type: String,
-    required: true
+    required: false
   },
   email: {
     type: String,
@@ -22,15 +23,15 @@ const userSchema = mongoose.Schema({
   },
   mobileNumber: {
     type: String,
-    required: true
+    required: false
   },
   gender: {
     type: String,
-    required: true
+    required: false
   },
   dateOfBirth: {
     type: String,
-    required: true
+    required: false
   },
   role: {
     type: String,
@@ -47,6 +48,10 @@ const userSchema = mongoose.Schema({
   customer: {
     type: String,
     required: false
+  },
+  status: {
+    type: String,
+    required: true
   },
   createdAt: {
     type: Date,
@@ -77,14 +82,13 @@ module.exports.createUser = (req , res) => {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         userId: req.body.userId,
-        email: req.body.firstName,
+        email: req.body.email,
         gender: req.body.gender,
         dateOfBirth: req.body.dateOfBirth,
         mobileNumber: req.body.mobileNumber,
         role: req.body.role,
         addressDetails: req.body.addressDetails,
         status: 'ACTIVE',
-        password: new Date().getTime() + Math.random(),
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -92,7 +96,10 @@ module.exports.createUser = (req , res) => {
       const salt = await bcryptjs.genSalt(10);
 
       if (salt) {
-        const hash = await bcryptjs.hash(user.password, salt);
+        const temporaryPassword = generator.generate({
+          length: 10,
+        });
+        const hash = await bcryptjs.hash(temporaryPassword, salt);
 
         if (hash) {
           user.password = hash;
@@ -106,7 +113,7 @@ module.exports.createUser = (req , res) => {
 
           if(!error) {
             res.status(200).json({success: true, message: 'Account created successfully.'});
-            sendNewAccountEmail(user);
+            sendNewAccountEmail(user, temporaryPassword);
           }
         });
       }
@@ -367,7 +374,7 @@ function verifyJsonWebToken(token) {
   });
 }
 
-function sendNewAccountEmail(user) {
+function sendNewAccountEmail(user, password) {
   const transporter = config.transporter;
   const token = jwt.sign(user.toJSON(), config.TOKEN_SECRET, { expiresIn: 3600000 }, null);
 
@@ -375,7 +382,7 @@ function sendNewAccountEmail(user) {
     from: config.emailFrom,
     to: user.email,
     subject: 'Account Created Successfully',
-    html: `<p>Your account has been created successfully please click the link below to set password for login.Temporary password is ${user.password}</p>
+    html: `<p>Your account has been created successfully please click the link below to set password for login.Temporary password is ${password}</p>
            <a href="${config.FRONTEND_URL + 'auth/reset-password/' + token + '/' + user._id}" >Set password</a>`
   };
 
