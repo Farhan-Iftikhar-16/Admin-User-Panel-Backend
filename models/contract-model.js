@@ -140,35 +140,46 @@ module.exports.createContract = (req , res) => {
         if (user) {
           const dsApiClient = new docusign.ApiClient();
           dsApiClient.setBasePath(jwtConfig.basePath);
-          const requestJWTUserToken = await dsApiClient.requestJWTUserToken(jwtConfig.dsJWTClientId,
-            jwtConfig.impersonatedUserGuid, SCOPES, rsaKey,
-            jwtLifeSec);
-          const accessToken = requestJWTUserToken.body.access_token;
-          dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + accessToken);
-          const envelopesApi = new docusign.EnvelopesApi(dsApiClient)
-
-          // Make the envelope request body
-          const envelope = createEnvelope(user, response);
-
-          // Call Envelopes::create API method
-          // Exceptions will be caught by the calling function
-          const createdEnvelope = await envelopesApi.createEnvelope(jwtConfig.accountId, {envelopeDefinition: envelope});
-
-          // Create the recipient view, the Signing Ceremony
-          let viewRequest = makeRecipientViewRequest(user, response._id);
-          // Call the CreateRecipientView API
-          // Exceptions will be caught by the calling function
-          let results = await envelopesApi.createRecipientView(jwtConfig.accountId, createdEnvelope.envelopeId,
-            {recipientViewRequest: viewRequest});
-          results = {... results};
-
-          await Contract.findByIdAndUpdate(response._id, {contractSigningURL: results.url}).catch((error) => {
+          const requestJWTUserToken = await dsApiClient.requestJWTUserToken(
+            jwtConfig.dsJWTClientId, jwtConfig.impersonatedUserGuid, SCOPES, rsaKey, jwtLifeSec)
+          .catch(error => {
             console.log(error);
-            return res.status(500).json({success: false, message: error});
+            const urlScopes = SCOPES.join('+');
+            const redirectUri = "http://localhost:4300/admin/edit-contract/0?consent_required=true";
+            if (error.response.body.error && error.response.body.error === 'consent_required') {
+              res.status(200).json({success: true, type: 'CONSENT_REQUIRED', message: 'Contract created successfully', id: response._id,
+                consentRequiredURL: `${jwtConfig.dsOauthServer}/oauth/auth?response_type=code&scope=${urlScopes}&client_id=${jwtConfig.dsJWTClientId}&redirect_uri=${redirectUri}`});
+            }
           });
-        }
 
-        res.status(200).json({success: true, message: 'Contract created successfully.'});
+          if (requestJWTUserToken && requestJWTUserToken.body && requestJWTUserToken.body.access_token) {
+            const accessToken = requestJWTUserToken.body.access_token;
+            dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + accessToken);
+            const envelopesApi = new docusign.EnvelopesApi(dsApiClient)
+
+            // Make the envelope request body
+            const envelope = createEnvelope(user, response);
+
+            // Call Envelopes::create API method
+            // Exceptions will be caught by the calling function
+            const createdEnvelope = await envelopesApi.createEnvelope(jwtConfig.accountId, {envelopeDefinition: envelope});
+
+            // Create the recipient view, the Signing Ceremony
+            let viewRequest = makeRecipientViewRequest(user, response._id);
+            // Call the CreateRecipientView API
+            // Exceptions will be caught by the calling function
+            let results = await envelopesApi.createRecipientView(jwtConfig.accountId, createdEnvelope.envelopeId,
+              {recipientViewRequest: viewRequest});
+            results = {... results};
+
+            await Contract.findByIdAndUpdate(response._id, {contractSigningURL: results.url}).catch((error) => {
+              console.log(error);
+              return res.status(500).json({success: false, message: error});
+            });
+
+            res.status(200).json({success: true, message: 'Contract created successfully.'});
+          }
+        }
       }
     });
   });
@@ -307,6 +318,53 @@ module.exports.updateContractStatus = (req, res) => {
 
     if (!error) {
       res.status(200).json({success: true, message: 'Contract status updated successfully.'});
+    }
+  });
+}
+
+module.exports.createContractSigningURL = (req, res) => {
+  Contract.findById(req.body.contractId, async (error, response) => {
+    if (error) {
+      res.status(500).json({success: false, message: 'Error occurred while updating status of contract.'});
+      return;
+    }
+
+    if (!error) {
+      const user = await User.findOne({userId: response.userId});
+      const dsApiClient = new docusign.ApiClient();
+      dsApiClient.setBasePath(jwtConfig.basePath);
+      const requestJWTUserToken = await dsApiClient.requestJWTUserToken(
+        jwtConfig.dsJWTClientId, jwtConfig.impersonatedUserGuid, SCOPES, rsaKey, jwtLifeSec);
+
+      if (requestJWTUserToken && requestJWTUserToken.body && requestJWTUserToken.body.access_token) {
+        const accessToken = requestJWTUserToken.body.access_token;
+        dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + accessToken);
+        const envelopesApi = new docusign.EnvelopesApi(dsApiClient)
+
+        // Make the envelope request body
+        const envelope = createEnvelope(user, response);
+
+        // Call Envelopes::create API method
+        // Exceptions will be caught by the calling function
+        const createdEnvelope = await envelopesApi.createEnvelope(jwtConfig.accountId, {envelopeDefinition: envelope});
+
+        // Create the recipient view, the Signing Ceremony
+        let viewRequest = makeRecipientViewRequest(user, response._id);
+        // Call the CreateRecipientView API
+        // Exceptions will be caught by the calling function
+        let results = await envelopesApi.createRecipientView(jwtConfig.accountId, createdEnvelope.envelopeId,
+          {recipientViewRequest: viewRequest});
+        results = {... results};
+
+        await Contract.findByIdAndUpdate(response._id, {contractSigningURL: results.url}).catch((error) => {
+          console.log(error);
+          return res.status(500).json({success: false, message: error});
+        });
+
+        res.status(200).json({success: true, message: 'Contract Signing URL created successfully.'});
+      }
+
+      res.status(500).json({success: false, message: 'Error Occured while creating contract signing URL.'});
     }
   });
 }
