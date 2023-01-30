@@ -145,7 +145,7 @@ module.exports.createContract = (req , res) => {
           .catch(error => {
             console.log(error);
             const urlScopes = SCOPES.join('+');
-            const redirectUri = "http://localhost:4300/admin/edit-contract/0?consent_required=true";
+            const redirectUri = "http://localhost:4200/admin/edit-contract/0?consent_required=true";
             if (error.response.body.error && error.response.body.error === 'consent_required') {
               res.status(200).json({success: true, type: 'CONSENT_REQUIRED', message: 'Contract created successfully', id: response._id,
                 consentRequiredURL: `${jwtConfig.dsOauthServer}/oauth/auth?response_type=code&scope=${urlScopes}&client_id=${jwtConfig.dsJWTClientId}&redirect_uri=${redirectUri}`});
@@ -362,9 +362,10 @@ module.exports.createContractSigningURL = (req, res) => {
         });
 
         res.status(200).json({success: true, message: 'Contract Signing URL created successfully.'});
+        return;
       }
 
-      res.status(500).json({success: false, message: 'Error Occured while creating contract signing URL.'});
+      res.status(500).json({success: false, message: 'Error Occurred while creating contract signing URL.'});
     }
   });
 }
