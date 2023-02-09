@@ -51,7 +51,7 @@ const userSchema = mongoose.Schema({
   },
   status: {
     type: String,
-    required: true
+    required: false
   },
   createdAt: {
     type: Date,

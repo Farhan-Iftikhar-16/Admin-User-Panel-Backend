@@ -12,7 +12,5 @@ module.exports = {
   emailFrom: 'farhaniftikhar16f16@gmail.com',
   FRONTEND_URL: 'http://localhost:4200/',
   TOKEN_SECRET: 'ADMIN_USER_PANEL',
-  STRIPE_SECRET_KEY: 'sk_test_51M83qcIrC5vZMBz5hnkiSFQhu8pOWZKDQ6D8gorhciRB24x7zOgiS1VYZ5dgmWje3wzkLUM7vtAHfjS9q8fYXH7h00AhH4ZdcT'
+  STRIPE_SECRET_KEY: 'sk_test_8M6hv9X154BNbS4VpNBJidf100aWzmVGj6'
 };
-
-
