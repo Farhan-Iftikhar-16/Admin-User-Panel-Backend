@@ -134,9 +134,11 @@ router.get('/transactions', async (req, res) => {
 
   if (!req.query || !req.query.customer) {
     for (let transaction of allTransactions.data) {
-      const source = await stripe.charges.retrieve(transaction.source);
-      transaction.customer = await stripe.customers.retrieve(source.customer);
-
+      if (transaction.source.startsWith('ch_')) {
+        const source = await stripe.charges.retrieve(transaction.source);
+        console.log(source.type);
+        transaction.customer = await stripe.customers.retrieve(source.customer);
+      }
     }
     res.status(200).json({success: true, transactions: allTransactions.data});
     return;
@@ -146,10 +148,11 @@ router.get('/transactions', async (req, res) => {
   const filteredTransactions = []
 
   for (let transaction of allTransactions.data) {
-    const source = await stripe.charges.retrieve(transaction.source);
-
-    if (source && source.customer === (req.query.customer)) {
-      filteredTransactions.push(transaction);
+    if (transaction.source.startsWith('ch_')) {
+      const source = await stripe.charges.retrieve(transaction.source);
+      if (source && source.customer === (req.query.customer)) {
+        filteredTransactions.push(transaction);
+      }
     }
   }
 
@@ -299,12 +302,17 @@ router.get('/get-customer-card/:id', async (req, res) => {
   let cards =  await stripe.customers.listSources(
     req.params.id,
     {object: 'card'}
-  );
+  ).catch(error => {
+    console.log(error);
+    return res.status(500).json({success: false, message: error.raw.message});
+  });
 
-  cards = cards.data
+  if (cards && cards.data && cards.data.length > 0) {
+    cards = cards.data
 
 
-  res.status(200).json({success: true, cards: cards});
+    res.status(200).json({success: true, cards: cards});
+  }
 });
 
 function createCustomer(value) {
